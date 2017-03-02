@@ -24,8 +24,8 @@ class PerceptronTagger(BaseTagger):
     :param load: Load the pickled model upon instantiation.
     '''
 
-    START = ['-START-', '-START2-']
-    END = ['-END-', '-END2-']
+    START = ['-START-', '-START2-', '-START3-']
+    END = ['-END-', '-END2-', '-END3-']
     AP_MODEL_LOC = os.path.join(os.path.dirname(__file__), PICKLE)
 
     def __init__(self, load=True):
@@ -47,7 +47,8 @@ class PerceptronTagger(BaseTagger):
         prev, prev2 = self.START
         tokens = []
         for words in split_sents(corpus):
-            context = self.START + [self._normalize(w) for w in words] + self.END
+            #context = self.START + [self._normalize(w) for w in words] + self.END
+            context = self.START + [w for w in words] + self.END
             for i, word in enumerate(words):
                 tag = self.tagdict.get(word)
                 if not tag:
@@ -71,22 +72,30 @@ class PerceptronTagger(BaseTagger):
         for iter_ in range(nr_iter):
             c = 0
             n = 0
+            not_unk = 0
+            not_unk_c = 0
             for words, tags in sentences:
-                prev, prev2 = self.START
-                context = self.START + [self._normalize(w) for w in words] \
+                prev, prev2, prev3 = self.START
+                #context = self.START + [self._normalize(w) for w in words] \
+                context = self.START + [w for w in words] \
                                                                     + self.END
                 for i, word in enumerate(words):
-                    guess = self.tagdict.get(word)
-                    if not guess:
-                        feats = self._get_features(i, word, context, prev, prev2)
-                        guess = self.model.predict(feats)
-                        self.model.update(tags[i], guess, feats)
+                    #guess = self.tagdict.get(word)
+                    #if not guess:
+                    feats = self._get_features(i, word, context, prev, prev2, prev3)
+                    guess = self.model.predict(feats)
+                    self.model.update(tags[i], guess, feats)
+                    prev3 = prev2
                     prev2 = prev
                     prev = guess
                     c += guess == tags[i]
                     n += 1
+                    if not tags[i] is "UNK":
+                        not_unk_c += guess == tags[i]
+                        not_unk += 1
             random.shuffle(sentences)
-            logging.info("Iter {0}: {1}/{2}={3}".format(iter_, c, n, _pc(c, n)))
+            #logging.info("Iter {0}: {1}/{2}={3}".format(iter_, c, n, _pc(c, n)))
+            print("Iter {0}: {1}/{2}={3}, {4}/{5}={6}".format(iter_, c, n, _pc(c, n), not_unk_c, not_unk, _pc(not_unk_c,not_unk) ))
         self.model.average_weights()
         # Pickle as a binary file
         if save_loc is not None:
@@ -123,7 +132,7 @@ class PerceptronTagger(BaseTagger):
         else:
             return word.lower()
 
-    def _get_features(self, i, word, context, prev, prev2):
+    def _get_features(self, i, word, context, prev, prev2, prev3):
         '''Map tokens into a feature representation, implemented as a
         {hashable: float} dict. If the features change, a new model must be
         trained.
@@ -139,6 +148,7 @@ class PerceptronTagger(BaseTagger):
         add('i pref1', word[0])
         add('i-1 tag', prev)
         add('i-2 tag', prev2)
+        add('i-3 tag', prev3)
         add('i tag+i-2 tag', prev, prev2)
         add('i word', context[i])
         add('i-1 tag+i word', prev, context[i])
