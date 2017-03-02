@@ -114,7 +114,7 @@ class PerceptronTagger(BaseTagger):
             if save_loc is not None:
                 backw = copy.deepcopy(self.model.weights)
                 self.model.average_weights()
-                modle_name = os.path.join(save_loc, "_{}.pkl".format(iter_))
+                model_name = "{}_{}.pkl".format(save_loc, iter_)
                 pickle.dump((self.model.weights, self.tagdict, self.classes), open(model_name, 'wb'), -1)
                 self.model.weights = backw
 
