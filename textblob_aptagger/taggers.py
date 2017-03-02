@@ -5,6 +5,7 @@ import random
 from collections import defaultdict
 import pickle
 import logging
+import copy
 
 from textblob.base import BaseTagger
 from textblob.tokenizers import WordTokenizer, SentenceTokenizer
@@ -59,6 +60,13 @@ class PerceptronTagger(BaseTagger):
                 prev = tag
         return tokens
 
+    def all_unk(self, tags):
+        for t in tags:
+            if not t is "UNK":
+                return False
+        return True
+
+
     def train(self, sentences, save_loc=None, nr_iter=5):
         '''Train a model from sentences, and save it at ``save_loc``. ``nr_iter``
         controls the number of Perceptron training iterations.
@@ -75,11 +83,16 @@ class PerceptronTagger(BaseTagger):
             not_unk = 0
             not_unk_c = 0
             for words, tags in sentences:
+                #if self.all_unk(tags):
+                #    if not random.randint(0,9) == 0:
+                #        continue
                 prev, prev2, prev3 = self.START
                 #context = self.START + [self._normalize(w) for w in words] \
-                context = self.START + [w for w in words] \
-                                                                    + self.END
+                context = self.START + [w for w in words] + self.END
                 for i, word in enumerate(words):
+                    if tags[i] == "UNK":
+                        if not random.randint(0,9) == 0:
+                            continue
                     #guess = self.tagdict.get(word)
                     #if not guess:
                     feats = self._get_features(i, word, context, prev, prev2, prev3)
@@ -96,11 +109,18 @@ class PerceptronTagger(BaseTagger):
             random.shuffle(sentences)
             #logging.info("Iter {0}: {1}/{2}={3}".format(iter_, c, n, _pc(c, n)))
             print("Iter {0}: {1}/{2}={3}, {4}/{5}={6}".format(iter_, c, n, _pc(c, n), not_unk_c, not_unk, _pc(not_unk_c,not_unk) ))
+
+            # Pickle as a binary file
+            if save_loc is not None:
+                backw = copy.deepcopy(self.model.weights)
+                self.model.average_weights()
+                modle_name = os.path.join(save_loc, "_{}.pkl".format(iter_))
+                pickle.dump((self.model.weights, self.tagdict, self.classes), open(model_name, 'wb'), -1)
+                self.model.weights = backw
+
         self.model.average_weights()
-        # Pickle as a binary file
-        if save_loc is not None:
-            pickle.dump((self.model.weights, self.tagdict, self.classes),
-                         open(save_loc, 'wb'), -1)
+        modle_name = os.path.join(save_loc, "_final.pkl".format(iter_))
+        pickle.dump((self.model.weights, self.tagdict, self.classes), open(save_loc, 'wb'), -1)
         return None
 
     def load(self, loc):

@@ -29,15 +29,11 @@ def run_train_model():
             continue
         sentences += tokenizer.readTokens()
 
-    for idx in range(1000000):
-        if (loop %1000) == 0:
-            model_name = os.path.join( model_root, "model_{}.pkl".format(loop) )
-        else:
-            model_name = None
 
-        tagger.train(sentences, model_name, nr_iter=2000000)
+    model_name = os.path.join( model_root, "model_" )
+    tagger.train(sentences, model_name, nr_iter=2000000)
 
-        loop += 1
+    loop += 1
 
 if __name__ == "__main__":
     run_train_model()
