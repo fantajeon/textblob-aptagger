@@ -6,11 +6,13 @@ from collections import defaultdict
 import pickle
 import logging
 import copy
+import pudb
 
 from textblob.base import BaseTagger
 from textblob.tokenizers import WordTokenizer, SentenceTokenizer
 from textblob.exceptions import MissingCorpusError
-from textblob_aptagger._perceptron import AveragedPerceptron
+#from textblob_aptagger._perceptron import AveragedPerceptron
+from _perceptron import AveragedPerceptron
 
 PICKLE = "trontagger-0.1.0.pickle"
 
@@ -25,8 +27,11 @@ class PerceptronTagger(BaseTagger):
     :param load: Load the pickled model upon instantiation.
     '''
 
-    START = ['-START-', '-START2-', '-START3-']
-    END = ['-END-', '-END2-', '-END3-']
+    nGram = 5
+
+
+    START = ['-START_{}-'.format(i) for i in range(nGram)]
+    END = ['-END_{}-'.format(i) for i in range(nGram)]
     AP_MODEL_LOC = os.path.join(os.path.dirname(__file__), PICKLE)
 
     def __init__(self, load=True):
@@ -45,19 +50,25 @@ class PerceptronTagger(BaseTagger):
             for s in s_split(corpus):
                 yield w_split(s)
 
-        prev, prev2 = self.START
         tokens = []
-        for words in split_sents(corpus):
+        #for words in split_sents(corpus):
+        for words in corpus:
+            prev = self.START
             #context = self.START + [self._normalize(w) for w in words] + self.END
             context = self.START + [w for w in words] + self.END
             for i, word in enumerate(words):
-                tag = self.tagdict.get(word)
-                if not tag:
-                    features = self._get_features(i, word, context, prev, prev2)
-                    tag = self.model.predict(features)
+                #if word.find("revenue") >=0:
+                #    pudb.set_trace()
+                #tag = self.tagdict.get(word)
+                #if not tag:
+                if True:
+                    features = self._get_features(i, word, context, prev)
+                    tag = self.model.predict(features, word)
                 tokens.append((word, tag))
-                prev2 = prev
-                prev = tag
+                for gi in range(self.nGram-1):
+                    prev[gi+1] = prev[gi]
+                prev[0] = tag
+            tokens.append( ("\n", "END") )
         return tokens
 
     def all_unk(self, tags):
@@ -86,7 +97,7 @@ class PerceptronTagger(BaseTagger):
                 #if self.all_unk(tags):
                 #    if not random.randint(0,9) == 0:
                 #        continue
-                prev, prev2, prev3 = self.START
+                prev = self.START
                 #context = self.START + [self._normalize(w) for w in words] \
                 context = self.START + [w for w in words] + self.END
                 for i, word in enumerate(words):
@@ -95,12 +106,13 @@ class PerceptronTagger(BaseTagger):
                             continue
                     #guess = self.tagdict.get(word)
                     #if not guess:
-                    feats = self._get_features(i, word, context, prev, prev2, prev3)
-                    guess = self.model.predict(feats)
-                    self.model.update(tags[i], guess, feats)
-                    prev3 = prev2
-                    prev2 = prev
-                    prev = guess
+                    feats = self._get_features(i, word, context, prev)
+                    guess = self.model.predict(feats, word)
+                    if guess != tags[i]:
+                        self.model.update(tags[i], guess, feats)
+                    for gi in range(self.nGram-1):
+                        prev[gi+1] = prev[gi]
+                    prev[0] = guess
                     c += guess == tags[i]
                     n += 1
                     if not tags[i] is "UNK":
@@ -152,7 +164,7 @@ class PerceptronTagger(BaseTagger):
         else:
             return word.lower()
 
-    def _get_features(self, i, word, context, prev, prev2, prev3):
+    def _get_features(self, i, word, context, prev):
         '''Map tokens into a feature representation, implemented as a
         {hashable: float} dict. If the features change, a new model must be
         trained.
@@ -166,12 +178,11 @@ class PerceptronTagger(BaseTagger):
         add('bias')
         add('i suffix', word[-3:])
         add('i pref1', word[0])
-        add('i-1 tag', prev)
-        add('i-2 tag', prev2)
-        add('i-3 tag', prev3)
-        add('i tag+i-2 tag', prev, prev2)
+        for pj, p in enumerate(prev):
+            add('i-{} tag'.format(pj), p)
+        add('i tag+i-2 tag', prev[0], prev[1])
         add('i word', context[i])
-        add('i-1 tag+i word', prev, context[i])
+        add('i-1 tag+i word', prev[0], context[i])
         add('i-1 word', context[i-1])
         add('i-1 suffix', context[i-1][-3:])
         add('i-2 word', context[i-2])

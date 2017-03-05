@@ -3,6 +3,7 @@ Averaged perceptron classifier. Implementation geared for simplicity rather than
 efficiency.
 """
 from collections import defaultdict
+import pdb
 import pickle
 import random
 
@@ -29,7 +30,7 @@ class AveragedPerceptron(object):
         # Number of instances seen
         self.i = 0
 
-    def predict(self, features):
+    def predict(self, features, word):
         '''Dot-product the features and current weights and return the best label.'''
         scores = defaultdict(float)
         for feat, value in features.items():
@@ -39,6 +40,12 @@ class AveragedPerceptron(object):
             for label, weight in weights.items():
                 scores[label] += value * weight
         # Do a secondary alphabetic sort, for stability
+        #if word.find('revenue') >= 0:
+        #    other = sorted(self.classes, reverse=True, key=lambda label: (scores[label]))
+        #    if scores[other[1]]/scores[other[0]] > 0.8:
+        #        top2 = [(other[0],scores[other[0]]), (other[1],scores[other[1]])]
+        #        print ("revenue: {}:{}".format(word,top2))
+
         return max(self.classes, key=lambda label: (scores[label], label))
 
     def update(self, truth, guess, features):

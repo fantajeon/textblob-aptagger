@@ -18,7 +18,10 @@ def run_train_model():
     trainlist = [name.strip() for name in fp.readlines()]
     fp.close()
 
+    pretrained_model_name = os.path.join( model_root, "model__1759.pkl" )
+
     tagger = PerceptronTagger(load=False)
+    tagger.load( pretrained_model_name )
     loop = 0
 
     sentences = []
