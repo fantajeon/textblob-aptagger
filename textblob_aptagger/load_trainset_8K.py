@@ -3,7 +3,7 @@ import pdb
 
 class Tokenizer():
     def __init__(self):
-        self.spliter = re.compile("^(.+)/(\[.+\])$", re.IGNORECASE)
+        self.spliter = re.compile("^(.+)/(\[fc:.+\])(.*)", re.IGNORECASE)
 
     def open(self, filename):
         f = open(filename, "rt")
@@ -22,14 +22,14 @@ class Tokenizer():
         if m is None:
             return (txt, "UNK")
         else:
-            return (m.group(1), m.group(2))
+            return (m.group(1)+m.group(3), m.group(2))
 
     def normalize(self, txt):
         pat_list = [
-                ('!YEAR', re.compile('\d{2,4}[/\-~]\d{1,2}', re.IGNORECASE)),
-                ('!YEAR', re.compile('\d{2,4}[/\-~]\d{1,2}[/\-~]\d{1,2}', re.IGNORECASE)),
-                ('!DIGIT', re.compile('\$?\s*\(?[\d,.]+\)?', re.IGNORECASE)), 
-                ('!DIGIT', re.compile('\$?\(?[\d,.]+\)?', re.IGNORECASE))
+                ('!YRS', re.compile('\d{2,4}[/\-~]\d{1,2}', re.IGNORECASE)),
+                ('!YRS', re.compile('\d{2,4}[/\-~]\d{1,2}[/\-~]\d{1,2}', re.IGNORECASE)),
+                ('!#DT', re.compile('\$?\s*\(?[\d,.]+\)?', re.IGNORECASE)), 
+                ('!#DT', re.compile('\$?\(?[\d,.]+\)?', re.IGNORECASE))
                 ]
         for norm_txt, matcher in pat_list:
             m = matcher.match(txt[0])

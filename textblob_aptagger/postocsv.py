@@ -1,3 +1,4 @@
+import pickle
 import numpy
 import pdb
 import random
@@ -5,8 +6,14 @@ from load_trainset_8K import Tokenizer
 import os
 
 
-#data_root = "/mywork/8K/usa_stock_parsing/8K_POS/"
-data_root = "/mywork/8K/usa_stock_parsing/8K_POS_test/"
+#load_class = False
+load_class = True
+class_pick = "./csv/classes.pkl"
+
+if not load_class:
+    data_root = "/mywork/8K/usa_stock_parsing/8K_POS/"
+else:
+    data_root = "/mywork/8K/usa_stock_parsing/8K_POS_test/"
 csv_root = "./csv/"
 def ndprint(a, format_string ='{0:.2f}'):
     print ([format_string.format(v,i) for i,v in enumerate(a)])
@@ -16,17 +23,28 @@ def make_directories():
         os.mkdir( csv_root )
 
 def convert_to_csv():
+    if load_class:
+        f = open(class_pick,"rb")
+        tag_dict = pickle.load(f)
+        f.close()
+    else:
+        tag_dict = dict()
+        tag_dict["UNK"] = 0
+
     make_directories()
-    #filelist = "/mywork/8K/usa_stock_parsing/8K_POS/8K_poslist.txt"
-    filelist = "/mywork/8K/usa_stock_parsing/8K_POS_test/8K_test_poslist.txt"
+    if not load_class:
+        filelist = "/mywork/8K/usa_stock_parsing/8K_POS/8K_poslist.txt"
+    else:
+        filelist = "/mywork/8K/usa_stock_parsing/8K_POS_test/8K_test_poslist.txt"
     fp = open(filelist, "rt")
     trainlist = [name.strip() for name in fp.readlines()]
     fp.close()
 
-    #csv_filename = os.path.join( csv_root, "train.csv" )
-    csv_filename = os.path.join( csv_root, "test.csv" )
+    if not load_class:
+        csv_filename = os.path.join( csv_root, "train.csv" )
+    else:
+        csv_filename = os.path.join( csv_root, "test.csv" )
 
-    tag_dict = dict()
 
     fp_train = open(csv_filename, "wt")
     for filename in trainlist:
@@ -60,7 +78,7 @@ def convert_to_csv():
                 sidx = i-1
                 try:
                     while True:
-                        for w in wordlist[sidx]:
+                        for w in reversed(wordlist[sidx]):
                             buf[lidx] = w
                             lidx -= 1
                             if lidx <0:
@@ -100,6 +118,8 @@ def convert_to_csv():
                 for c in buf.tolist():
                     if c == '':
                         str_buf += ' '
+                    elif c == '\"':
+                        str_buf += '\"\"'
                     elif c == '\r':
                         continue
                     elif c == '\n':
@@ -109,9 +129,16 @@ def convert_to_csv():
 
                 keyword = wordlist[i]
                 keyword = keyword.replace("\n", "\\\\n")
-                line = "{},\"{}\",\"{}\"\n".format( tok_id, keyword, str_buf)
+                keyword = keyword.replace("\"", "\"\"")
+                line = "{},\"{}\",\"{}\"\n".format( tok_id + 1, keyword, str_buf)
                 fp_train.write(line)
+
     fp_train.close()
+
+    if not load_class:
+        f = open(class_pick, "wb")
+        pickle.dump(tag_dict, f)
+        f.close()
 
 if __name__ == "__main__":
 	convert_to_csv()
